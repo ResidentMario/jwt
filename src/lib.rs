@@ -132,7 +132,7 @@ impl JWT {
             Ok(inner) => (*String::from_utf8_lossy(&inner[..])).to_owned(),
             Err(e) => panic!(e),
         };
-        let mut jwt = JWT::new(&claims_set);
+        let mut jwt = JWT::from_str(&claims_set);
 
         // Q: why can't we take header["alg"] here?
         //
@@ -163,7 +163,7 @@ pub struct JWT {
 }
 
 impl JWT {
-    pub fn new(claims_set: &str) -> JWT {
+    pub fn from_str(claims_set: &str) -> JWT {
         let result = json::parse(claims_set);
         match result {
             Ok(claims_set) => JWT {
@@ -171,6 +171,13 @@ impl JWT {
                 claims_set
             },
             Err(e) => panic!(e)
+        }
+    }
+
+    pub fn new() -> JWT {
+        JWT {
+            header: JWTHeader{typ:Typ::None, alg:Alg::None, cty:Cty::None},
+            claims_set: json::parse("").unwrap()
         }
     }
 }
