@@ -177,7 +177,7 @@ impl JWT {
     pub fn new() -> JWT {
         JWT {
             header: JWTHeader{typ:Typ::None, alg:Alg::None, cty:Cty::None},
-            claims_set: json::parse("").unwrap()
+            claims_set: json::JsonValue::new_object()
         }
     }
 }
