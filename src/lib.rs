@@ -2,7 +2,10 @@ use serde_json::Value;
 use std::{error::Error, fmt, result};
 
 #[derive(Debug)]
-pub struct JWTError;
+pub enum JWTError {
+    ParseError(serde_json::Error),
+    SchemaError
+}
 
 // Q: why is this allowed to be empty?
 // A: the Error trait has description, cause, and source methods. These have default
@@ -16,8 +19,15 @@ pub struct JWTError;
 impl Error for JWTError {}
 impl fmt::Display for JWTError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Failed to parse input.")
-    }    
+        match self {
+            JWTError::ParseError(e) => {
+                write!(f, "Invalid JSON, parsing failed with:\n{}", e)
+            },
+            JWTError::SchemaError => {
+                write!(f, "Schema error!")
+            }
+        }
+    }
 }
 // Result aliasing is a common technique for managing the type of errors specific to your library.
 // Cf https://blog.burntsushi.net/rust-error-handling/#the-result-type-alias-idiom
@@ -65,10 +75,7 @@ impl JWTHeader {
         // convert an &str to a String using to_owned.
         //
         // An alternative would be using String::new.
-        let mut header: String = "{\"alg\": ".to_owned();
-        header.push_str("\"none\"");
-        header.push_str("}");
-        header
+        String::from("{\"alg\": ") + "\"none\"" + "}"
     }
 
     pub fn encode(&self) -> String {
@@ -101,35 +108,27 @@ impl JWTHeader {
 
 impl JWT {
     pub fn encode_str(&self) -> String {
-        let mut result: String = self.header.encode_str();
-        result.push_str("\n.\n");
-        result.push_str(&self.claims_set.to_string());
-        result.push_str("\n.\n");
-        result
+        self.header.encode_str() + "\n.\n" + &self.claims_set.to_string() + "\n.\n"
     }
 
     pub fn encode(&self) -> String {
-        let mut result: String = self.header.encode();
-        let claims_set: String = base64::encode(self.claims_set.to_string().into_bytes());
-        result.push_str("\n.\n");
-        result.push_str(&claims_set);
-        result.push_str("\n.\n");
-        result
+        self.header.encode() + "\n.\n" +
+        &base64::encode(self.claims_set.to_string().into_bytes()) +
+        "\n.\n"
     }
 
-    pub fn decode(input: String) -> JWT {
-        // let mut components = input.split(".").collect::<Vec<&str>>();
-
-        // Before we can operate on the component strings, we have to strip out newlines and spaces.
+    pub fn decode_str(input: String) -> Result<JWT> {
+        // Before we can operate on the component strings, we have to strip out {space, CR, LF}
+        // characters.
         let filter = |c: &char| -> bool { 
             c != &'\u{0020}' && c != &'\u{000A}' && c != &'\u{000D}'
         };
         let components = input
             .split(".")
             .map(|s: &str| s.chars().filter(filter).collect::<String>())
-            .collect::<Vec<_>>();
+            .collect::<Vec<String>>();
         if components.len() != 3 {
-            panic!("Could not decode string: string does not have enough components.");
+            return Result::<JWT>::Err(JWTError::SchemaError)
         }
 
         let header = match base64::decode(&components[0]) {
@@ -181,7 +180,7 @@ impl JWT {
             "none" => jwt.header.alg = Alg::None,
             _ => panic!("Bad alg value.")
         }
-        jwt
+        Result::<JWT>::Ok(jwt)
     }
 
     pub fn from_str(claims_set: &str) -> Result<JWT> {
@@ -192,7 +191,7 @@ impl JWT {
                     claims_set
                 }
             })
-            .map_err(|_| { JWTError })
+            .map_err(|e| { JWTError::ParseError(e) })
     }
 
     pub fn new() -> JWT {
