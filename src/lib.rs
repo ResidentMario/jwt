@@ -1,4 +1,4 @@
-use json::JsonValue;
+use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Typ {
@@ -22,6 +22,12 @@ pub struct JWTHeader {
     pub typ: Typ,
     pub cty: Cty,
     pub alg: Alg,
+}
+
+#[derive(Debug)]
+pub struct JWT {
+    pub header: JWTHeader,
+    pub claims_set: Value,
 }
 
 impl JWTHeader {
@@ -74,14 +80,14 @@ impl JWT {
     pub fn encode_str(&self) -> String {
         let mut result: String = self.header.encode_str();
         result.push_str("\n.\n");
-        result.push_str(&self.claims_set.dump());
+        result.push_str(&self.claims_set.to_string());
         result.push_str("\n.\n");
         result
     }
 
     pub fn encode(&self) -> String {
         let mut result: String = self.header.encode();
-        let claims_set: String = base64::encode(self.claims_set.dump().into_bytes());
+        let claims_set: String = base64::encode(self.claims_set.to_string().into_bytes());
         result.push_str("\n.\n");
         result.push_str(&claims_set);
         result.push_str("\n.\n");
@@ -124,7 +130,7 @@ impl JWT {
             },
             Err(e) => panic!(e),
         };
-        let header = match json::parse(&header) {
+        let header: serde_json::Value = match serde_json::from_str(&header) {
             Ok(inner) => inner,
             Err(e) => panic!(e),
         };
@@ -154,17 +160,9 @@ impl JWT {
         }
         jwt
     }
-}
 
-#[derive(Debug)]
-pub struct JWT {
-    pub header: JWTHeader,
-    pub claims_set: JsonValue,
-}
-
-impl JWT {
     pub fn from_str(claims_set: &str) -> JWT {
-        let result = json::parse(claims_set);
+        let result = serde_json::from_str(claims_set);
         match result {
             Ok(claims_set) => JWT {
                 header: JWTHeader{typ:Typ::None, alg:Alg::None, cty:Cty::None},
@@ -177,7 +175,7 @@ impl JWT {
     pub fn new() -> JWT {
         JWT {
             header: JWTHeader{typ:Typ::None, alg:Alg::None, cty:Cty::None},
-            claims_set: json::JsonValue::new_object()
+            claims_set: serde_json::json!("{}")
         }
     }
 }
