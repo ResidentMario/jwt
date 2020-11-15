@@ -1,4 +1,27 @@
 use serde_json::Value;
+use std::{error::Error, fmt, result};
+
+#[derive(Debug)]
+pub struct JWTError;
+
+// Q: why is this allowed to be empty?
+// A: the Error trait has description, cause, and source methods. These have default
+// implementations, which we can trigger by leaving the impl block empty.
+//
+// On the other hand, Error _also_ requires implementing the fmt::Display and Debug supertraits.
+// The Debug supertrait is usually implemented using derive, as above. The fmt::Display supertrait
+// we implement ourselves here.
+//
+// Cf https://stackoverflow.com/questions/42584368/how-do-you-define-custom-error-types-in-rust
+impl Error for JWTError {}
+impl fmt::Display for JWTError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Failed to parse input.")
+    }    
+}
+// Result aliasing is a common technique for managing the type of errors specific to your library.
+// Cf https://blog.burntsushi.net/rust-error-handling/#the-result-type-alias-idiom
+pub type Result<T> = result::Result<T, JWTError>;
 
 #[derive(Debug)]
 pub enum Typ {
@@ -138,7 +161,7 @@ impl JWT {
             Ok(inner) => (*String::from_utf8_lossy(&inner[..])).to_owned(),
             Err(e) => panic!(e),
         };
-        let mut jwt = JWT::from_str(&claims_set);
+        let mut jwt = JWT::from_str(&claims_set).unwrap();
 
         // Q: why can't we take header["alg"] here?
         //
@@ -161,15 +184,15 @@ impl JWT {
         jwt
     }
 
-    pub fn from_str(claims_set: &str) -> JWT {
-        let result = serde_json::from_str(claims_set);
-        match result {
-            Ok(claims_set) => JWT {
-                header: JWTHeader{typ:Typ::None, alg:Alg::None, cty:Cty::None},
-                claims_set
-            },
-            Err(e) => panic!(e)
-        }
+    pub fn from_str(claims_set: &str) -> Result<JWT> {
+        serde_json::from_str(claims_set)
+            .map(|claims_set| { 
+                JWT {
+                    header: JWTHeader{typ:Typ::None, alg:Alg::None, cty:Cty::None},
+                    claims_set
+                }
+            })
+            .map_err(|_| { JWTError })
     }
 
     pub fn new() -> JWT {
