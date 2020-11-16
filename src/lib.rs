@@ -3,8 +3,9 @@ use std::{error::Error, fmt, result};
 
 #[derive(Debug)]
 pub enum JWTError {
-    ParseError(serde_json::Error),
-    SchemaError
+    ParseError(String),
+    SchemaError,
+    NotImplementedError
 }
 
 // Q: why is this allowed to be empty?
@@ -25,6 +26,9 @@ impl fmt::Display for JWTError {
             },
             JWTError::SchemaError => {
                 write!(f, "Schema error!")
+            }
+            JWTError::NotImplementedError => {
+                write!(f, "Not implemented.")
             }
         }
     }
@@ -104,6 +108,42 @@ impl JWTHeader {
         let header: String = base64::encode(header);
         header
     }
+
+    pub fn decode_str(input: &str) -> Result<JWTHeader> {
+        let header: Result<Value> =
+            // (1) String of b64 chars -> Vec<u8>, a sequence of octets. A DecodeError is thrown
+            // if a byte is found to be out of range.
+            base64::decode(&input)
+            .map_err(|e| { JWTError::ParseError(format!("{}", e)) })
+            // (2) Vec<u8> -> String. Recall that Strings are utf-8.
+            .and_then(|inner| { 
+                String::from_utf8(inner)
+                .map_err(|e| { JWTError::ParseError(format!("{}", e)) })
+            })
+            // (3) String -> JSON.
+            .and_then(|inner| {
+                serde_json::from_str(&inner)
+                .map_err(|e| { JWTError::ParseError(format!("{}", e)) })
+            });
+        // Early return to unpack the non-error header.
+        let header: Value = match header {
+            Ok(header) => header,
+            Err(e) => return Err(e)
+        };
+
+        let alg = &header["alg"];
+        if alg.is_null() {
+            return Err(JWTError::SchemaError)
+        }
+        let alg = alg.as_str().unwrap();
+        let alg = match alg {
+            "none" => Alg::None,
+            _ => return Err(JWTError::NotImplementedError)
+        };
+        Ok(JWTHeader {
+            alg, cty: Cty::None, typ: Typ::None
+        })
+    }
 }
 
 impl JWT {
@@ -131,59 +171,36 @@ impl JWT {
             return Result::<JWT>::Err(JWTError::SchemaError)
         }
 
-        let header = match base64::decode(&components[0]) {
-            Ok(inner) => {
-                // Q: what is all this???
-                //
-                // A: well, the output of base64::decode is a Result enum containing a Vec<u8>
-                // (if the decode succeeded; an Error if it did not). To convert this to a
-                // String, we must use one of from_utf8, an associated method with its own error
-                // handler, or the "lazy" from_ut8_lossy, an associated method lacking an error
-                // handler.
-                //
-                // These methods take a slice reference, _not_ a Vec, as input. And they construct
-                // a copy-on-write owned smart pointer--a "Cow"--as output.
-                //
-                // We dereference that pointer to get a reference to the boxed &str, then call
-                // to_owned on the &str to get an owned String, which finally we return.
-                //
-                // This is kind of a lot. I guess this gets easier with time?
-                (*String::from_utf8_lossy(&inner[..])).to_owned()
-            },
-            Err(e) => panic!(e),
+        let header = JWTHeader::decode_str(&components[0]);
+        let header: JWTHeader = match header {
+            Ok(header) => header,
+            Err(e) => return Err(e)
         };
-        let header: serde_json::Value = match serde_json::from_str(&header) {
-            Ok(inner) => inner,
-            Err(e) => panic!(e),
-        };
-        let claims_set = match base64::decode(&components[1]) {
-            Ok(inner) => (*String::from_utf8_lossy(&inner[..])).to_owned(),
-            Err(e) => panic!(e),
-        };
-        let mut jwt = JWT::from_str(&claims_set).unwrap();
 
-        // Q: why can't we take header["alg"] here?
-        //
-        // A: declaring alg = header["alg"] makes alg the new owner of the JsonValue. This consumes
-        // the value, causing any earlier references to this structure to go out of scope. This is
-        // not OK because we are somehow still using the deallocated references in the code that
-        // follows? IDK. Rust is hard.
-        //
-        // Anyway, making it a reference makes it an immutable borrow, which avoids the ownership
-        // problems.
-        let alg = &header["alg"];
-        if alg.is_null() {
-            panic!("'alg' value in header cannot be null.");
-        }
-        let alg = alg.as_str().unwrap();
-        match alg {
-            "none" => jwt.header.alg = Alg::None,
-            _ => panic!("Bad alg value.")
-        }
+        let claims_set: Result<JWT> =
+            // (1) String of b64 chars -> Vec<u8>, a sequence of octets. A DecodeError is thrown
+            // if a byte is found to be out of range.
+            base64::decode(&components[1])
+            .map_err(|e| { JWTError::ParseError(format!("{}", e)) })
+            // (2) Vec<u8> -> String. Recall that Strings are utf-8.
+            .and_then(|inner| { 
+                String::from_utf8(inner)
+                .map_err(|e| { JWTError::ParseError(format!("{}", e)) })
+            })
+            //(3) String -> JWT (via from_plain_str).
+            // NOTE: this will need to change once we start implementing JWS and JWE.
+            .and_then( |inner| { JWT::from_plain_str(&inner) });
+
+        // Early return to unpack the non-error JWT.
+        let mut jwt: JWT = match claims_set {
+            Ok(claims_set) => claims_set,
+            Err(e) => return Err(e)
+        };
+        jwt.header = header;
         Result::<JWT>::Ok(jwt)
     }
 
-    pub fn from_str(claims_set: &str) -> Result<JWT> {
+    pub fn from_plain_str(claims_set: &str) -> Result<JWT> {
         serde_json::from_str(claims_set)
             .map(|claims_set| { 
                 JWT {
@@ -191,7 +208,7 @@ impl JWT {
                     claims_set
                 }
             })
-            .map_err(|e| { JWTError::ParseError(e) })
+            .map_err(|e| { JWTError::ParseError(format!("{}", e)) })
     }
 
     pub fn new() -> JWT {
