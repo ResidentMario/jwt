@@ -15,6 +15,33 @@ pub struct JWT {
     pub claims_set: Value,
 }
 
+/// The `JWT` struct represents a JWT of any of three valid types: unencrypted JWT, JWS (JSON Web
+/// Signature), or JWE (JSON Web Encryption). This struct and the methods that interact with it
+/// form the bulk of the public-facing API.
+///
+/// # Examples
+///
+/// ```
+/// use jwt::JWT;
+///
+/// // Encode and decode a simple unecrypted `JWT` to and from a plaintext `String`.
+/// let jwt: JWT = JWT::from_plain_str("{\"foo\": \"bar\"}").unwrap();
+/// let jwt_as_plaintext: String = jwt.encode_str();
+/// assert_eq!(r#"{"alg": "none"}
+/// .
+/// {"foo":"bar"}
+/// .
+/// "#, jwt_as_plaintext);
+///
+/// // Encode and decode to and from an unencrypted base64 `String`.
+/// let jwt_encoded: String = jwt.encode();
+/// assert_eq!(r#"eyJhbGciOiAibm9uZSJ9
+/// .
+/// eyJmb28iOiJiYXIifQ==
+/// .
+/// "#, jwt_encoded);
+/// let jwt: JWT = JWT::decode_str(&jwt_encoded).unwrap();
+/// ```
 impl JWT {
     /// Encodes self into a plaintext string suitable for display.
     pub fn encode_str(&self) -> String {
@@ -106,5 +133,13 @@ impl JWT {
 impl fmt::Display for JWT {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.encode_str())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
     }
 }

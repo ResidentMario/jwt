@@ -27,7 +27,11 @@ pub struct JWTHeader {
     pub alg: Alg,
 }
 
+/// The `JWTHeader` struct represents a JWT header, known in the spec as a JOSE header. Although
+/// you may construct with `JWTHeader` structs directly, it is usually better to use the public
+/// `JWT` struct and its accompanying methods instead.
 impl JWTHeader {
+
     /// Encodes self into a plaintext JOSE Header suitable for display.
     pub fn encode_str(&self) -> String {
         String::from("{\"alg\": ") + "\"none\"" + "}"
