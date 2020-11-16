@@ -1,3 +1,5 @@
+//! `jwt` is a JWT parsing Rust crate I implemented in order to gain experience with Rust.
+
 use serde_json::Value;
 use std::{error::Error, fmt, result};
 
@@ -8,14 +10,6 @@ pub enum JWTError {
     NotImplementedError
 }
 
-// Q: why is this allowed to be empty?
-// A: the Error trait has description, cause, and source methods. These have default
-// implementations, which we can trigger by leaving the impl block empty.
-//
-// On the other hand, Error _also_ requires implementing the fmt::Display and Debug supertraits.
-// The Debug supertrait is usually implemented using derive, as above. The fmt::Display supertrait
-// we implement ourselves here.
-//
 // Cf https://stackoverflow.com/questions/42584368/how-do-you-define-custom-error-types-in-rust
 impl Error for JWTError {}
 impl fmt::Display for JWTError {
@@ -68,47 +62,21 @@ pub struct JWT {
 }
 
 impl JWTHeader {
+    /// Encodes self into a plaintext JOSE Header suitable for display.
     pub fn encode_str(&self) -> String {
-        // Q: why is to_owned necessary here?
-        //
-        // A: A variable lives on the stack, so the size of its contents must be known at compile
-        // time. A str is unsized, so "{alg" creates a &str pointer, which does not have ownership
-        // over the string contents.
-        //
-        // A String, meanwhile, _is_ sized, and therefore returns an owned reference. One can
-        // convert an &str to a String using to_owned.
-        //
-        // An alternative would be using String::new.
         String::from("{\"alg\": ") + "\"none\"" + "}"
     }
 
+    /// Encodes self into a valid JOSE Header.
     pub fn encode(&self) -> String {
-        // Q: why doesn't the following code work?
-        //
-        // let mut header: String = "{alg: ".to_owned();
-        // header.as_bytes()
-        //
-        // A: header is an owned reference scoped to the function closure. as_bytes returns a
-        // borrow of this reference, which goes out of scope once the function finishes executing,
-        // which is illegal.
-        //
-        // The fix is to use into_bytes() instead.
-        //
-        // Q: Why doesn't the following code work?
-        //
-        // let header: String = self.encode_str();
-        // let header = header.into_bytes()[..];
-        // header
-        //
-        // A: the [..] operator takes a slice of the vector. A vector is an owned reference. A
-        // slice is a borrow. Therefore, we are in the same position we were in before: the slice
-        // reference is illegal because it is a borrow of a variable that went out of scope.
         let header: String = self.encode_str();
         let header: Vec<u8> = header.into_bytes();
         let header: String = base64::encode(header);
         header
     }
 
+    /// Decodes an `input` `String` into a JOSE header. `input` must be a valid encoded JWT
+    /// payload, elsewise a `JWTError` will be thrown.
     pub fn decode_str(input: &str) -> Result<JWTHeader> {
         let header: Result<Value> =
             // (1) String of b64 chars -> Vec<u8>, a sequence of octets. A DecodeError is thrown
@@ -146,18 +114,28 @@ impl JWTHeader {
     }
 }
 
+impl fmt::Display for JWTHeader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.encode_str())
+    }
+}
+
 impl JWT {
+    /// Encodes self into a plaintext string suitable for display.
     pub fn encode_str(&self) -> String {
         self.header.encode_str() + "\n.\n" + &self.claims_set.to_string() + "\n.\n"
     }
 
+    /// Encodes self into a base64-encoded JWT string suitable for transport.
     pub fn encode(&self) -> String {
         self.header.encode() + "\n.\n" +
         &base64::encode(self.claims_set.to_string().into_bytes()) +
         "\n.\n"
     }
 
-    pub fn decode_str(input: String) -> Result<JWT> {
+    /// Decodes an `input` `String` into a JWT. `input` must be a valid encoded JWT payload,
+    /// elsewise a `JWTError` will be thrown.
+    pub fn decode_str(input: &str) -> Result<JWT> {
         // Before we can operate on the component strings, we have to strip out {space, CR, LF}
         // characters.
         let filter = |c: &char| -> bool { 
@@ -200,6 +178,8 @@ impl JWT {
         Result::<JWT>::Ok(jwt)
     }
 
+    /// Outputs an unsecured JWT containing the given `claims_set`, or a `JWTError` if the
+    /// `claims_set` is invalid. Takes a plaintext JWT string as input.
     pub fn from_plain_str(claims_set: &str) -> Result<JWT> {
         serde_json::from_str(claims_set)
             .map(|claims_set| { 
@@ -211,10 +191,17 @@ impl JWT {
             .map_err(|e| { JWTError::ParseError(format!("{}", e)) })
     }
 
+    /// Constructor. Outputs an empty unsecured JWT.
     pub fn new() -> JWT {
         JWT {
             header: JWTHeader{typ:Typ::None, alg:Alg::None, cty:Cty::None},
             claims_set: serde_json::json!("{}")
         }
+    }
+}
+
+impl fmt::Display for JWT {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.encode_str())
     }
 }

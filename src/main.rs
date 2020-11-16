@@ -2,7 +2,8 @@ use jwt::{JWT, Result};
 // use json::parse;
 
 fn main() {
-    // let jwt: JWT = JWT::from_str("{\"foo\": \"bar\"}").unwrap();
+    let jwt: JWT = JWT::from_plain_str("{\"foo\": \"bar\"}").unwrap();
+    println!("{}", jwt);
     // let jwt: Result<JWT> = JWT::from_str("{\"\"foo\": \"bar\"}");
     // match jwt {
     //     Ok(jwt) => println!("{:?}", jwt),
@@ -10,5 +11,5 @@ fn main() {
     // }
     // println!("{:?}", jwt);
     // println!("{}", jwt.encode());
-    println!("{:?}", JWT::decode_str("eyJhbGciOiAibm9uZSJ9\n.\neyJmb28iOiJiYXIifQ==\n.\n".to_owned()));
+    // println!("{:?}", JWT::decode_str("eyJhbGciOiAibm9uZSJ9\n.\neyJmb28iOiJiYXIifQ==\n.\n".to_owned()));
 }
