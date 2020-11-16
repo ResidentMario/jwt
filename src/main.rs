@@ -1,5 +1,4 @@
-use jwt::{JWT, Result};
-// use json::parse;
+use jwt::JWT;
 
 fn main() {
     let jwt: JWT = JWT::from_plain_str("{\"foo\": \"bar\"}").unwrap();
