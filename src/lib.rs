@@ -8,6 +8,7 @@ use std::fmt;
 // you want "use crate::err;" to import from other files in the same directory.
 pub mod err;
 pub mod header;
+mod claims;
 
 #[derive(Debug)]
 pub struct JWT {
