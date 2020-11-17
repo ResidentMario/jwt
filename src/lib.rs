@@ -125,7 +125,7 @@ impl JWT {
                 alg: header::Alg::None,
                 cty: header::Cty::None
             },
-            claims_set: serde_json::json!("{}")
+            claims_set: serde_json::json!({})
         }
     }
 }
@@ -138,8 +138,52 @@ impl fmt::Display for JWT {
 
 #[cfg(test)]
 mod tests {
+    // Tests are isolated to their own mod, so they do not have any imports by default.
+    //
+    // Useful trick for importing everything from the current file's context, which for the tests,
+    // is the parent context, is to use super.
+    use super::*;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_encode_empty() {
+        let jwt = JWT::new();
+        assert_eq!(r#"eyJhbGciOiAibm9uZSJ9
+.
+e30=
+.
+"#, jwt.encode());
+    }
+
+    #[test]
+    fn test_encode_nonempty() {
+        let mut jwt = JWT::new();
+        jwt.claims_set = serde_json::json!("{foo:bar}");
+        assert_eq!(r#"eyJhbGciOiAibm9uZSJ9
+.
+Intmb286YmFyfSI=
+.
+"#, jwt.encode());
+    }
+
+    #[test]
+    fn test_encode_str_empty() {
+        let jwt = JWT::new();
+        assert_eq!(r#"{"alg": "none"}
+.
+{}
+.
+"#, jwt.encode_str());
+    }
+
+    #[test]
+    fn test_encode_str_nonempty() {
+        let mut jwt = JWT::new();
+        jwt.claims_set = serde_json::json!({"foo": "bar"});
+        println!("{}", jwt.encode_str());
+        assert_eq!(r#"{"alg": "none"}
+.
+{"foo":"bar"}
+.
+"#, jwt.encode_str());
     }
 }

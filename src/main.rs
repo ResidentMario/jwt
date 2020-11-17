@@ -1,9 +1,8 @@
 use jwt::JWT;
 
 fn main() {
-    let jwt: JWT = JWT::from_plain_str("{\"foo\": \"bar\"}").unwrap();
+    let jwt: JWT = JWT::new();
     println!("{}", jwt);
-    println!("{}", jwt.encode())
     // let jwt: Result<JWT> = JWT::from_str("{\"\"foo\": \"bar\"}");
     // match jwt {
     //     Ok(jwt) => println!("{:?}", jwt),
