@@ -13,14 +13,9 @@ pub mod traits;
 pub use traits::JsonSerializable;
 
 #[derive(Debug)]
-pub struct JWT {
-    pub header: header::JWTHeader,
-    pub claim_set: claims::ClaimSet,
-}
-
-/// The `JWT` struct represents a JWT of any of three valid types: unencrypted JWT, JWS (JSON Web
-/// Signature), or JWE (JSON Web Encryption). This struct and the methods that interact with it
-/// form the bulk of the public-facing API.
+/// The `JWT` struct represents a JWT of any of three valid types: an unencrypted JWT, a JWS (JSON
+/// Web Signature), or a JWE (JSON Web Encryption). This struct and the methods that interact with
+/// it form the bulk of the public-facing API.
 ///
 /// # Examples
 ///
@@ -46,6 +41,11 @@ pub struct JWT {
 /// "#, jwt_encoded);
 /// let jwt: JWT = JWT::decode_b64(&jwt_encoded).unwrap();
 /// ```
+pub struct JWT {
+    pub header: header::JWTHeader,
+    pub claim_set: claims::ClaimSet,
+}
+
 impl traits::JsonSerializable for JWT {
     /// Encodes self into a plaintext string suitable for display.
     fn encode_str(&self) -> String {

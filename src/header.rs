@@ -22,15 +22,15 @@ pub enum Cty {
 }
 
 #[derive(Debug)]
+/// The `JWTHeader` struct represents a JWT header, known in the spec as a JOSE header. Although
+/// you may construct with `JWTHeader` structs directly, it is usually better to use the public
+/// `JWT` struct and its accompanying methods instead.
 pub struct JWTHeader {
     pub typ: Typ,
     pub cty: Cty,
     pub alg: Alg,
 }
 
-/// The `JWTHeader` struct represents a JWT header, known in the spec as a JOSE header. Although
-/// you may construct with `JWTHeader` structs directly, it is usually better to use the public
-/// `JWT` struct and its accompanying methods instead.
 impl JsonSerializable for JWTHeader {
 
     /// Encodes self into a plaintext JOSE Header suitable for display.

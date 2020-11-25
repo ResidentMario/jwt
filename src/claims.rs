@@ -134,7 +134,7 @@ impl Claim {
 
     fn get_claim_type(claim_name: &StringOrURI) -> ClaimType {
         match claim_name {
-            // Assume that any URIs the user passes are collision-resistant.
+            // URIs are considered collision-resistant, according to the spec.
             StringOrURI::URI(_) => ClaimType::Public,
             StringOrURI::String(s) => {
                 // contains is compare-by-value.
