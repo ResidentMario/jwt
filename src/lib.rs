@@ -59,23 +59,65 @@ impl traits::JsonSerializable for JWT {
         "\n.\n"
     }
 
-    // fn decode_str(input: &str) -> err::Result<JWT> {
-    //     // Before we can operate on the component strings, we have to strip out {space, CR, LF}
-    //     // characters.
-    //     let filter = |c: &char| -> bool { 
-    //         c != &'\u{0020}' && c != &'\u{000A}' && c != &'\u{000D}'
-    //     };
-    //     let components = input
-    //         .split(".")
-    //         .map(|s: &str| s.chars().filter(filter).collect::<String>())
-    //         .collect::<Vec<String>>();
-    // }
-
     /// Decodes an `input` base64-encoded `String` into a JWT. `input` must be a valid encoded JWT
     /// payload, otherwise a `JWTError` will be returned.
     fn decode_b64(input: &str) -> err::Result<JWT> {
-        // NOTE: splitting on the "." character leaves in {space, CR, LF} code points. We need to
-        // remove these code points *before* passing this data to base64::decode.
+        let components = JWT::split_into_components(input);
+        let components = match components {
+            Ok(components) => components,
+            Err(e) => return Err(e),
+        };
+
+        let header = header::JWTHeader::decode_b64(&components[0]);
+        let header: header::JWTHeader = match header {
+            Ok(header) => header,
+            Err(e) => return Err(e),
+        };
+
+        let claim_set = claims::ClaimSet::decode_b64(&components[1]);
+        let claim_set: claims::ClaimSet = match claim_set {
+            Ok(claim_set) => claim_set,
+            Err(e) => return Err(e),
+        };
+
+        let mut jwt = JWT::new();
+        jwt.header = header;
+        jwt.claim_set = claim_set;
+        Ok(jwt)
+    }
+
+    /// Decodes an `input` plaintext JWT `String` into a `JWT`. `input` must be a valid JWT
+    /// payload, otherwise a `JWTError` will be returned.
+    fn decode_str(input: &str) -> err::Result<JWT> {
+        let components = JWT::split_into_components(input);
+        let components = match components {
+            Ok(components) => components,
+            Err(e) => return Err(e),
+        };
+
+        let header = header::JWTHeader::decode_str(&components[0]);
+        let header: header::JWTHeader = match header {
+            Ok(header) => header,
+            Err(e) => return Err(e),
+        };
+
+        let claim_set = claims::ClaimSet::decode_str(&components[1]);
+        let claim_set: claims::ClaimSet = match claim_set {
+            Ok(claim_set) => claim_set,
+            Err(e) => return Err(e),
+        };
+
+        let mut jwt = JWT::new();
+        jwt.header = header;
+        jwt.claim_set = claim_set;
+        Ok(jwt)
+    }
+}
+
+impl JWT {
+    // Splits a base64-encoded or plaintext JWT into its three components, removing optional
+    // characters (space, CR, LF) in the process.
+    fn split_into_components(input: &str) -> err::Result<Vec<String>> {
         let filter = |c: &char| -> bool { 
             c != &'\u{0020}' && c != &'\u{000A}' && c != &'\u{000D}'
         };
@@ -84,57 +126,11 @@ impl traits::JsonSerializable for JWT {
             .map(|s: &str| s.chars().filter(filter).collect::<String>())
             .collect::<Vec<String>>();
         if components.len() != 3 {
-            return err::Result::<JWT>::Err(err::JWTError::SchemaError)
+            return Err(err::JWTError::SchemaError)
         }
-
-        let header = header::JWTHeader::decode_b64(&components[0]);
-        let header: header::JWTHeader = match header {
-            Ok(header) => header,
-            Err(e) => return Err(e)
-        };
-
-        let claims_set: err::Result<JWT> =
-            // (1) String of b64 chars -> Vec<u8>, a sequence of octets. A DecodeError is thrown
-            // if a byte is found to be out of range.
-            base64::decode(&components[1])
-            .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) })
-            // (2) Vec<u8> -> String. Recall that Strings are utf-8.
-            .and_then(|inner| { 
-                String::from_utf8(inner)
-                .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) })
-            })
-            //(3) String -> JWT (via from_plain_str).
-            // NOTE: this will need to change once we start implementing JWS and JWE.
-            .and_then( |inner| { JWT::from_plain_str(&inner) });
-
-        // Early return to unpack the non-error JWT.
-        let mut jwt: JWT = match claims_set {
-            Ok(claims_set) => claims_set,
-            Err(e) => return Err(e)
-        };
-        jwt.header = header;
-        err::Result::<JWT>::Ok(jwt)
+        Ok(components)
     }
 
-    // TODO: implement this
-    fn decode_str(input: &str) -> err::Result<JWT> {
-        Ok(JWT::new())
-    }
-
-    // /// Decodes an `input` base64 encoded `String` into a JWT. `input` must be a valid encoded
-    // /// JWT payload, otherwise a `JWTError` will be thrown.
-    // fn decode_b64(input: &str) -> err::Result<JWT> {
-    //     base64::decode(input)
-    //         .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) })
-    //         .and_then(|inner| {
-    //             String::from_utf8(inner)
-    //             .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) })
-    //         })
-    //         .and_then( |inner| { JWT::decode_str(&inner) })
-    // }
-}
-
-impl JWT {
     /// Outputs an unsecured `JWT` containing the given `claims_set`, or a `JWTError` if the
     /// `claims_set` is invalid. Takes a plaintext `JWT` string as input.
     pub fn from_plain_str(claims_set: &str) -> err::Result<JWT> {
@@ -220,15 +216,4 @@ eyJmb28iOiJiYXIifQ==
 .
 "#, jwt.encode_str());
     }
-
-//     #[test]
-//     fn test_decode_str() {
-//         let raw = r#"{"alg": "none"}
-// .
-// {"foo":"bar"}
-// .
-// "#;
-//         let jwt = JWT::decode_b64(raw).unwrap();
-//         assert_eq!(jwt.encode_str(), raw);
-//     }
 }
