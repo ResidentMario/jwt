@@ -49,13 +49,13 @@ pub struct JWT {
 impl traits::JsonSerializable for JWT {
     /// Encodes self into a plaintext string suitable for display.
     fn encode_str(&self) -> String {
-        self.header.encode_str() + "\n.\n" + &self.claim_set.as_str() + "\n.\n"
+        self.header.encode_str() + "\n.\n" + &self.claim_set.encode_str() + "\n.\n"
     }
 
     /// Encodes self into a base64-encoded JWT string suitable for transport.
     fn encode_b64(&self) -> String {
         self.header.encode_b64() + "\n.\n" +
-        &base64::encode(self.claim_set.as_str().into_bytes()) +
+        &base64::encode(self.claim_set.encode_str().into_bytes()) +
         "\n.\n"
     }
 
@@ -116,6 +116,11 @@ impl traits::JsonSerializable for JWT {
         err::Result::<JWT>::Ok(jwt)
     }
 
+    // TODO: implement this
+    fn decode_str(input: &str) -> err::Result<JWT> {
+        Ok(JWT::new())
+    }
+
     // /// Decodes an `input` base64 encoded `String` into a JWT. `input` must be a valid encoded
     // /// JWT payload, otherwise a `JWTError` will be thrown.
     // fn decode_b64(input: &str) -> err::Result<JWT> {
@@ -133,7 +138,7 @@ impl JWT {
     /// Outputs an unsecured `JWT` containing the given `claims_set`, or a `JWTError` if the
     /// `claims_set` is invalid. Takes a plaintext `JWT` string as input.
     pub fn from_plain_str(claims_set: &str) -> err::Result<JWT> {
-        claims::ClaimSet::from_str(claims_set)
+        claims::ClaimSet::decode_str(claims_set)
             .map(|claims_set| { 
                 JWT {
                     header: header::JWTHeader {
@@ -187,7 +192,7 @@ e30=
     #[test]
     fn test_encode_nonempty() {
         let mut jwt = JWT::new();
-        jwt.claim_set = claims::ClaimSet::from_str("{\"foo\":\"bar\"}").unwrap();
+        jwt.claim_set = claims::ClaimSet::decode_str("{\"foo\":\"bar\"}").unwrap();
         assert_eq!(r#"eyJhbGciOiAibm9uZSJ9
 .
 eyJmb28iOiJiYXIifQ==
@@ -208,7 +213,7 @@ eyJmb28iOiJiYXIifQ==
     #[test]
     fn test_encode_str_nonempty() {
         let mut jwt = JWT::new();
-        jwt.claim_set = claims::ClaimSet::from_str("{\"foo\":\"bar\"}").unwrap();
+        jwt.claim_set = claims::ClaimSet::decode_str("{\"foo\":\"bar\"}").unwrap();
         assert_eq!(r#"{"alg": "none"}
 .
 {"foo":"bar"}

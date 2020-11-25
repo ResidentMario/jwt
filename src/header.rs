@@ -2,6 +2,7 @@ use serde_json::Value;
 use std::fmt;
 
 use crate::err;
+use crate::traits::JsonSerializable;
 
 #[derive(Debug)]
 pub enum Typ {
@@ -30,15 +31,15 @@ pub struct JWTHeader {
 /// The `JWTHeader` struct represents a JWT header, known in the spec as a JOSE header. Although
 /// you may construct with `JWTHeader` structs directly, it is usually better to use the public
 /// `JWT` struct and its accompanying methods instead.
-impl JWTHeader {
+impl JsonSerializable for JWTHeader {
 
     /// Encodes self into a plaintext JOSE Header suitable for display.
-    pub fn encode_str(&self) -> String {
+    fn encode_str(&self) -> String {
         String::from("{\"alg\": ") + "\"none\"" + "}"
     }
 
     /// Encodes self into a valid JOSE Header.
-    pub fn encode_b64(&self) -> String {
+    fn encode_b64(&self) -> String {
         let header: String = self.encode_str();
         let header: Vec<u8> = header.into_bytes();
         let header: String = base64::encode(header);
@@ -47,7 +48,7 @@ impl JWTHeader {
 
     /// Decodes an `input` `String` into a JOSE header. `input` must be a valid encoded JWT
     /// payload, elsewise a `JWTError` will be thrown.
-    pub fn decode_b64(input: &str) -> err::Result<JWTHeader> {
+    fn decode_b64(input: &str) -> err::Result<JWTHeader> {
         let header: err::Result<String> =
             // (1) String of b64 chars -> Vec<u8>, a sequence of octets. A DecodeError is thrown
             // if a byte is found to be out of range.
@@ -69,7 +70,7 @@ impl JWTHeader {
         JWTHeader::decode_str(&header)
     }
 
-    pub fn decode_str(input: &str) -> err::Result<JWTHeader> {
+    fn decode_str(input: &str) -> err::Result<JWTHeader> {
         // String -> JSON.
         let header = serde_json::from_str(input)
             .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) });
@@ -91,7 +92,7 @@ impl JWTHeader {
         };
         Ok(JWTHeader {
             alg, cty: Cty::None, typ: Typ::None
-        })        
+        })
     }
 }
 

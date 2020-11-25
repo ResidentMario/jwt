@@ -4,6 +4,7 @@ use url::{Url};
 use serde_json::{Map, Value};
 
 use crate::err;
+use crate::traits::JsonSerializable;
 
 #[derive(Debug)]
 /// The JWT specification states that claim names must be legal `StringOrURI` values. For names
@@ -183,13 +184,14 @@ impl Claim {
 /// # Examples
 /// ```
 /// use jwt::claims::ClaimSet;
+/// use crate::jwt::JsonSerializable;
 ///
 /// // Construct a ClaimSet
 /// let cs_str = "{\"claim_name\": \"claim_value\", \"another_claim_name\": \"another_claim_value\"}";
-/// let cs = ClaimSet::from_str(cs_str).unwrap();
+/// let cs = ClaimSet::decode_str(cs_str).unwrap();
 ///
 /// // Transform it back into a string. Notice that order is *not* preserved.
-/// println!("{}", cs.as_str())
+/// println!("{}", cs.encode_str())
 /// // {"another_claim_name": "another_claim_value", "claim_name": "claim_value"}
 /// ```
 pub struct ClaimSet {
@@ -198,7 +200,7 @@ pub struct ClaimSet {
 
 impl fmt::Display for ClaimSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.encode_str())
     }
 }
 
@@ -220,9 +222,17 @@ impl ClaimSet {
         }
     }
 
+    /// Returns the `Claim` with the given name from the `ClaimSet`, or a
+    /// `err::JWTError::SchemaError` if none is found.
+    pub fn get(&self, claim_name: &str) -> err::Result<&Claim> {
+        self.claims.get(claim_name).ok_or(err::JWTError::SchemaError)
+    }
+}
+
+impl JsonSerializable for ClaimSet {
     /// Constructs a new `ClaimSet` from a valid JSON string of key-value pairs. Returns a
     /// `err::JWTError::ParseError` if the input string is not valid JSON.
-    pub fn from_str(claim_set: &str) -> err::Result<ClaimSet> {
+    fn decode_str(claim_set: &str) -> err::Result<ClaimSet> {
         let parse: err::Result<Map<String, serde_json::Value>> =
             serde_json::from_str(&claim_set)
             .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) });
@@ -263,14 +273,8 @@ impl ClaimSet {
         Ok(result)
     }
 
-    /// Returns the `Claim` with the given name from the `ClaimSet`, or a
-    /// `err::JWTError::SchemaError` if none is found.
-    pub fn get(&self, claim_name: &str) -> err::Result<&Claim> {
-        self.claims.get(claim_name).ok_or(err::JWTError::SchemaError)
-    }
-
     /// Returns the `ClaimSet` in `String` format.
-    pub fn as_str(&self) -> String {
+    fn encode_str(&self) -> String {
         if self.claims.len() == 0 {
             return String::from("{}")
         }
@@ -286,6 +290,20 @@ impl ClaimSet {
         out_parts.pop();
         out_parts.push(String::from("}"));
         out_parts.join("")
+    }
+
+    fn encode_b64(&self) -> String {
+        base64::encode(self.encode_str())
+    }
+
+    fn decode_b64(input: &str) -> err::Result<ClaimSet> {
+        base64::decode(input)
+            .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) })
+            .and_then(|inner| {
+                String::from_utf8(inner)
+                .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) })
+            })
+            .and_then( |inner| { ClaimSet::decode_str(&inner) })
     }
 }
 
@@ -338,9 +356,25 @@ mod tests {
     }
 
     #[test]
-    fn test_claim_set() {
-        let c = ClaimSet::from_str("{\"a\": \"b\"}").unwrap();
+    fn test_claim_set_decode_str() {
+        let c = ClaimSet::decode_str("{\"a\": \"b\"}").unwrap();
         assert_eq!(c.claims.get("a").unwrap().claim_value, "b");
+    }
+
+    #[test]
+    fn test_claim_set_encode_str() {
+        let v = "{\"a\":\"b\"}";
+        let cs = ClaimSet::decode_str(v).unwrap();
+        assert_eq!(cs.encode_str(), v);
+    }
+
+    #[test]
+    fn test_claim_set_encode_b64() {
+        // TODO: roundtrip here using decode_b64, once it's implemented.
+        let v = "eyJhIjoiYiJ9";
+        let cs = ClaimSet::decode_b64(v).unwrap();
+        println!("{:?}", cs.claims);
+        assert_eq!(cs.encode_b64(), v);
     }
 }
 
