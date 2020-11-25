@@ -8,6 +8,9 @@ use std::fmt;
 pub mod err;
 pub mod header;
 pub mod claims;
+pub mod traits;
+
+pub use traits::JsonSerializable;
 
 #[derive(Debug)]
 pub struct JWT {
@@ -23,6 +26,7 @@ pub struct JWT {
 ///
 /// ```
 /// use jwt::JWT;
+/// use jwt::JsonSerializable;
 ///
 /// // Encode and decode a simple unecrypted `JWT` to and from a plaintext `String`.
 /// let jwt: JWT = JWT::from_plain_str("{\"foo\": \"bar\"}").unwrap();
@@ -34,7 +38,7 @@ pub struct JWT {
 /// "#, jwt_as_plaintext);
 ///
 /// // Encode and decode to and from an unencrypted base64 `String`.
-/// let jwt_encoded: String = jwt.encode();
+/// let jwt_encoded: String = jwt.encode_b64();
 /// assert_eq!(r#"eyJhbGciOiAibm9uZSJ9
 /// .
 /// eyJmb28iOiJiYXIifQ==
@@ -42,14 +46,14 @@ pub struct JWT {
 /// "#, jwt_encoded);
 /// let jwt: JWT = JWT::decode_str(&jwt_encoded).unwrap();
 /// ```
-impl JWT {
+impl traits::JsonSerializable for JWT {
     /// Encodes self into a plaintext string suitable for display.
-    pub fn encode_str(&self) -> String {
+    fn encode_str(&self) -> String {
         self.header.encode_str() + "\n.\n" + &self.claim_set.as_str() + "\n.\n"
     }
 
     /// Encodes self into a base64-encoded JWT string suitable for transport.
-    pub fn encode(&self) -> String {
+    fn encode_b64(&self) -> String {
         self.header.encode() + "\n.\n" +
         &base64::encode(self.claim_set.as_str().into_bytes()) +
         "\n.\n"
@@ -57,7 +61,7 @@ impl JWT {
 
     /// Decodes an `input` `String` into a JWT. `input` must be a valid encoded JWT payload,
     /// elsewise a `JWTError` will be thrown.
-    pub fn decode_str(input: &str) -> err::Result<JWT> {
+    fn decode_str(input: &str) -> err::Result<JWT> {
         // Before we can operate on the component strings, we have to strip out {space, CR, LF}
         // characters.
         let filter = |c: &char| -> bool { 
@@ -100,6 +104,14 @@ impl JWT {
         err::Result::<JWT>::Ok(jwt)
     }
 
+    // /// Decodes an `input` base64 encoded `String` into a JWT. `input` must be a valid encoded
+    // /// JWT payload, otherwise a `JWTError` will be thrown.
+    // fn decode_b64(input: &str) -> err::Result<JWT> {
+
+    // }
+}
+
+impl JWT {
     /// Outputs an unsecured `JWT` containing the given `claims_set`, or a `JWTError` if the
     /// `claims_set` is invalid. Takes a plaintext `JWT` string as input.
     pub fn from_plain_str(claims_set: &str) -> err::Result<JWT> {
@@ -151,7 +163,7 @@ mod tests {
 .
 e30=
 .
-"#, jwt.encode());
+"#, jwt.encode_b64());
     }
 
     #[test]
@@ -162,7 +174,7 @@ e30=
 .
 eyJmb28iOiJiYXIifQ==
 .
-"#, jwt.encode());
+"#, jwt.encode_b64());
     }
 
     #[test]

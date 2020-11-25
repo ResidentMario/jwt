@@ -4,7 +4,7 @@ use url::{Url};
 use serde_json::{Map, Value};
 
 use crate::err;
-
+use crate::traits::JsonSerializable;
 #[derive(Debug)]
 /// The JWT specification states that claim names must be legal `StringOrURI` values. For names
 /// lacking a colon `:`, a `StringOrURI` is a (valid UTF-8) string. For names containing a colon,
@@ -115,7 +115,7 @@ pub struct Claim {
 
 impl fmt::Display for Claim {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.encode_str())
     }
 }
 
@@ -163,7 +163,7 @@ impl Claim {
     }
 
     /// Returns the `Claim` in string format.
-    pub fn as_str(&self) -> String {
+    pub fn encode_str(&self) -> String {
         // TODO: why can this fail? Investigate why unwrap is necessary here.
         String::from("{\"") + self.claim_name.as_str() + "\":" +
         &serde_json::to_string(&self.claim_value).unwrap() + "}"
@@ -279,7 +279,7 @@ impl ClaimSet {
         for claim_name in self.claims.keys() {
             // Operation is safe, hence unwrap().
             let claim = self.claims.get(claim_name).unwrap();
-            let claim = claim.as_str();
+            let claim = claim.encode_str();
             out_parts.push(String::from(&claim[1..(claim.len() - 1)]));
             out_parts.push(String::from(","));
         }
