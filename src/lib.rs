@@ -59,11 +59,23 @@ impl traits::JsonSerializable for JWT {
         "\n.\n"
     }
 
+    // fn decode_str(input: &str) -> err::Result<JWT> {
+    //     // Before we can operate on the component strings, we have to strip out {space, CR, LF}
+    //     // characters.
+    //     let filter = |c: &char| -> bool { 
+    //         c != &'\u{0020}' && c != &'\u{000A}' && c != &'\u{000D}'
+    //     };
+    //     let components = input
+    //         .split(".")
+    //         .map(|s: &str| s.chars().filter(filter).collect::<String>())
+    //         .collect::<Vec<String>>();
+    // }
+
     /// Decodes an `input` base64-encoded `String` into a JWT. `input` must be a valid encoded JWT
     /// payload, otherwise a `JWTError` will be returned.
     fn decode_b64(input: &str) -> err::Result<JWT> {
-        // Before we can operate on the component strings, we have to strip out {space, CR, LF}
-        // characters.
+        // NOTE: splitting on the "." character leaves in {space, CR, LF} code points. We need to
+        // remove these code points *before* passing this data to base64::decode.
         let filter = |c: &char| -> bool { 
             c != &'\u{0020}' && c != &'\u{000A}' && c != &'\u{000D}'
         };
@@ -75,7 +87,7 @@ impl traits::JsonSerializable for JWT {
             return err::Result::<JWT>::Err(err::JWTError::SchemaError)
         }
 
-        let header = header::JWTHeader::decode_str(&components[0]);
+        let header = header::JWTHeader::decode_b64(&components[0]);
         let header: header::JWTHeader = match header {
             Ok(header) => header,
             Err(e) => return Err(e)

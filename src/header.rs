@@ -47,7 +47,7 @@ impl JWTHeader {
 
     /// Decodes an `input` `String` into a JOSE header. `input` must be a valid encoded JWT
     /// payload, elsewise a `JWTError` will be thrown.
-    pub fn decode_str(input: &str) -> err::Result<JWTHeader> {
+    pub fn decode_b64(input: &str) -> err::Result<JWTHeader> {
         let header: err::Result<Value> =
             // (1) String of b64 chars -> Vec<u8>, a sequence of octets. A DecodeError is thrown
             // if a byte is found to be out of range.
