@@ -100,8 +100,8 @@ impl JWT {
         err::Result::<JWT>::Ok(jwt)
     }
 
-    /// Outputs an unsecured JWT containing the given `claims_set`, or a `JWTError` if the
-    /// `claims_set` is invalid. Takes a plaintext JWT string as input.
+    /// Outputs an unsecured `JWT` containing the given `claims_set`, or a `JWTError` if the
+    /// `claims_set` is invalid. Takes a plaintext `JWT` string as input.
     pub fn from_plain_str(claims_set: &str) -> err::Result<JWT> {
         claims::ClaimSet::from_str(claims_set)
             .map(|claims_set| { 

@@ -86,7 +86,6 @@ pub enum ClaimType {
     Private,
 }
 
-// TODO: implement Format trait
 #[derive(Debug)]
 /// A **claim** is a statement of fact, consisting of a *claim name* (a `StringOrURI`) and a
 /// *claim value* (an arbitrary JSON fragment). A set of claims (a `ClaimSet`) composes the
@@ -112,6 +111,12 @@ pub struct Claim {
     pub claim_type: ClaimType,
     pub claim_name: StringOrURI,
     pub claim_value: Value,
+}
+
+impl fmt::Display for Claim {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 const REGISTERED_CLAIMS: &[&str; 7] = &["iss", "sub", "aud", "exp", "nbf", "iat", "jti"];
@@ -193,8 +198,7 @@ pub struct ClaimSet {
 
 impl fmt::Display for ClaimSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // TODO: implement this properly.
-        write!(f, "ClaimSet(TODO)")
+        write!(f, "{}", self.as_str())
     }
 }
 
