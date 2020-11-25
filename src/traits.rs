@@ -8,7 +8,6 @@ use crate::err;
 pub trait JsonSerializable: Sized {
     fn encode_str(&self) -> String;
     fn encode_b64(&self) -> String;
-    fn decode_str(input: &str) -> err::Result<Self>;
-    // TODO: add decode_64.
-    // fn decode_b64(input: &str) -> err::Result<Self>;
+    // fn decode_str(input: &str) -> err::Result<Self>;
+    fn decode_b64(input: &str) -> err::Result<Self>;
 }

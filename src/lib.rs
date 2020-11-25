@@ -44,7 +44,7 @@ pub struct JWT {
 /// eyJmb28iOiJiYXIifQ==
 /// .
 /// "#, jwt_encoded);
-/// let jwt: JWT = JWT::decode_str(&jwt_encoded).unwrap();
+/// let jwt: JWT = JWT::decode_b64(&jwt_encoded).unwrap();
 /// ```
 impl traits::JsonSerializable for JWT {
     /// Encodes self into a plaintext string suitable for display.
@@ -59,9 +59,9 @@ impl traits::JsonSerializable for JWT {
         "\n.\n"
     }
 
-    /// Decodes an `input` `String` into a JWT. `input` must be a valid encoded JWT payload,
-    /// elsewise a `JWTError` will be thrown.
-    fn decode_str(input: &str) -> err::Result<JWT> {
+    /// Decodes an `input` base64-encoded `String` into a JWT. `input` must be a valid encoded JWT
+    /// payload, otherwise a `JWTError` will be returned.
+    fn decode_b64(input: &str) -> err::Result<JWT> {
         // Before we can operate on the component strings, we have to strip out {space, CR, LF}
         // characters.
         let filter = |c: &char| -> bool { 
@@ -107,7 +107,13 @@ impl traits::JsonSerializable for JWT {
     // /// Decodes an `input` base64 encoded `String` into a JWT. `input` must be a valid encoded
     // /// JWT payload, otherwise a `JWTError` will be thrown.
     // fn decode_b64(input: &str) -> err::Result<JWT> {
-
+    //     base64::decode(input)
+    //         .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) })
+    //         .and_then(|inner| {
+    //             String::from_utf8(inner)
+    //             .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) })
+    //         })
+    //         .and_then( |inner| { JWT::decode_str(&inner) })
     // }
 }
 
@@ -191,11 +197,21 @@ eyJmb28iOiJiYXIifQ==
     fn test_encode_str_nonempty() {
         let mut jwt = JWT::new();
         jwt.claim_set = claims::ClaimSet::from_str("{\"foo\":\"bar\"}").unwrap();
-        println!("{}", jwt.encode_str());
         assert_eq!(r#"{"alg": "none"}
 .
 {"foo":"bar"}
 .
 "#, jwt.encode_str());
     }
+
+//     #[test]
+//     fn test_decode_str() {
+//         let raw = r#"{"alg": "none"}
+// .
+// {"foo":"bar"}
+// .
+// "#;
+//         let jwt = JWT::decode_b64(raw).unwrap();
+//         assert_eq!(jwt.encode_str(), raw);
+//     }
 }
