@@ -2,8 +2,8 @@
 use jwt::claims::ClaimSet;
 
 fn main() {
-    let cs = ClaimSet::from_str("{\"a\": {\"b\": \"c\"}}").unwrap();
-    println!("{}", cs.to_str())
+    let cs = ClaimSet::from_str("{\"foo\": \"bar\", \"baz\": \"ban\"}").unwrap();
+    println!("{}", cs.as_str())
     // let r: serde_json::Value = serde_json::from_str("{\"a\": \"b\"}").unwrap();
     // let r: serde_json::Map<String, serde_json::Value> = serde_json::from_str("{\"a\": \"b\"}").unwrap();
     // let r = serde_json::from_str("{\"a\": \"b\"}").unwrap();

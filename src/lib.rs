@@ -45,13 +45,13 @@ pub struct JWT {
 impl JWT {
     /// Encodes self into a plaintext string suitable for display.
     pub fn encode_str(&self) -> String {
-        self.header.encode_str() + "\n.\n" + &self.claims_set.to_string() + "\n.\n"
+        self.header.encode_str() + "\n.\n" + &self.claims_set.as_str() + "\n.\n"
     }
 
     /// Encodes self into a base64-encoded JWT string suitable for transport.
     pub fn encode(&self) -> String {
         self.header.encode() + "\n.\n" +
-        &base64::encode(self.claims_set.to_string().into_bytes()) +
+        &base64::encode(self.claims_set.as_str().into_bytes()) +
         "\n.\n"
     }
 
@@ -157,10 +157,10 @@ e30=
     #[test]
     fn test_encode_nonempty() {
         let mut jwt = JWT::new();
-        jwt.claims_set = claims::ClaimSet::from_str("{foo:bar}").unwrap();
+        jwt.claims_set = claims::ClaimSet::from_str("{\"foo\":\"bar\"}").unwrap();
         assert_eq!(r#"eyJhbGciOiAibm9uZSJ9
 .
-Intmb286YmFyfSI=
+eyJmb28iOiJiYXIifQ==
 .
 "#, jwt.encode());
     }
@@ -178,7 +178,7 @@ Intmb286YmFyfSI=
     #[test]
     fn test_encode_str_nonempty() {
         let mut jwt = JWT::new();
-        jwt.claims_set = claims::ClaimSet::from_str("{foo:bar}").unwrap();
+        jwt.claims_set = claims::ClaimSet::from_str("{\"foo\":\"bar\"}").unwrap();
         println!("{}", jwt.encode_str());
         assert_eq!(r#"{"alg": "none"}
 .

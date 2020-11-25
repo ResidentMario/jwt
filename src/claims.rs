@@ -157,10 +157,11 @@ impl Claim {
         Ok(claim)
     }
 
-    // TODO: implement this method, which is used by ClaimSet.as_str.
-    // CURRENT POSITION.
-    fn as_str(&self) -> String {
-        String::from("\"") + self.claim_name.as_str() + "\": " + self.claim_value.as_str().unwrap()
+    /// Returns the `Claim` in string format.
+    pub fn as_str(&self) -> String {
+        // TODO: why can this fail? Investigate why unwrap is necessary here.
+        String::from("{\"") + self.claim_name.as_str() + "\":" +
+        &serde_json::to_string(&self.claim_value).unwrap() + "}"
     }
 }
 
@@ -177,9 +178,14 @@ impl Claim {
 /// # Examples
 /// ```
 /// use jwt::claims::ClaimSet;
-/// let cs = ClaimSet::from_str(
-///     "{\"claim_name\": \"claim_value\", \"another_claim_name\": \"another_claim_value\"}"
-/// );
+///
+/// // Construct a ClaimSet
+/// let cs_str = "{\"claim_name\": \"claim_value\", \"another_claim_name\": \"another_claim_value\"}";
+/// let cs = ClaimSet::from_str(cs_str).unwrap();
+///
+/// // Transform it back into a string. Notice that order is *not* preserved.
+/// println!("{}", cs.as_str())
+/// // {"another_claim_name": "another_claim_value", "claim_name": "claim_value"}
 /// ```
 pub struct ClaimSet {
     pub claims: HashMap<String, Claim>,
@@ -259,14 +265,22 @@ impl ClaimSet {
         self.claims.get(claim_name).ok_or(err::JWTError::SchemaError)
     }
 
-    // TODO: RETURN TO THIS ONCE THE CLAIM AS_STR IS IMPLEMENTED.
-    pub fn to_str(&self) -> String {
+    /// Returns the `ClaimSet` in `String` format.
+    pub fn as_str(&self) -> String {
+        if self.claims.len() == 0 {
+            return String::from("{}")
+        }
+
         let mut out_parts: Vec<String> = vec![String::from("{")];
         for claim_name in self.claims.keys() {
             // Operation is safe, hence unwrap().
             let claim = self.claims.get(claim_name).unwrap();
-            out_parts.push(claim.as_str());
+            let claim = claim.as_str();
+            out_parts.push(String::from(&claim[1..(claim.len() - 1)]));
+            out_parts.push(String::from(","));
         }
+        out_parts.pop();
+        out_parts.push(String::from("}"));
         out_parts.join("")
     }
 }
