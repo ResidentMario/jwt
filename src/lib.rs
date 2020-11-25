@@ -54,7 +54,7 @@ impl traits::JsonSerializable for JWT {
 
     /// Encodes self into a base64-encoded JWT string suitable for transport.
     fn encode_b64(&self) -> String {
-        self.header.encode() + "\n.\n" +
+        self.header.encode_b64() + "\n.\n" +
         &base64::encode(self.claim_set.as_str().into_bytes()) +
         "\n.\n"
     }

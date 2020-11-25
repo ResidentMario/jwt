@@ -1,4 +1,3 @@
-use std::fmt;
 use crate::err;
 
 // Structs implementing the `JsonSerializable` trait are losslessly transformable to and from
