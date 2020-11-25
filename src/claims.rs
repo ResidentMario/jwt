@@ -156,8 +156,15 @@ impl Claim {
         claim.claim_value = claim_value;
         Ok(claim)
     }
+
+    // TODO: implement this method, which is used by ClaimSet.as_str.
+    // CURRENT POSITION.
+    fn as_str(&self) -> String {
+        String::from("\"") + self.claim_name.as_str() + "\": " + self.claim_value.as_str().unwrap()
+    }
 }
 
+#[derive(Debug)]
 /// A **ClaimSet** is a set of (uniquely named) claims. It is the payload portion of a complete
 /// `JWT`.
 ///
@@ -217,8 +224,6 @@ impl ClaimSet {
         };
 
         let mut result = ClaimSet::new();
-        // TODO: CURRENTLY HERE. Need to work out the object sharing here.
-        // SEE ALSO THE test_claim_set TESTING STUB USED TO TDD CHANGES HERE.
         for claim_name in parse.keys() {
             // Using unwrap here is fine because this is a safe operation.
             let claim_value = parse.get(claim_name).unwrap();
@@ -250,8 +255,19 @@ impl ClaimSet {
 
     /// Returns the `Claim` with the given name from the `ClaimSet`, or a
     /// `err::JWTError::SchemaError` if none is found.
-    pub fn get(&mut self, claim_name: &str) -> err::Result<&Claim> {
+    pub fn get(&self, claim_name: &str) -> err::Result<&Claim> {
         self.claims.get(claim_name).ok_or(err::JWTError::SchemaError)
+    }
+
+    // TODO: RETURN TO THIS ONCE THE CLAIM AS_STR IS IMPLEMENTED.
+    pub fn to_str(&self) -> String {
+        let mut out_parts: Vec<String> = vec![String::from("{")];
+        for claim_name in self.claims.keys() {
+            // Operation is safe, hence unwrap().
+            let claim = self.claims.get(claim_name).unwrap();
+            out_parts.push(claim.as_str());
+        }
+        out_parts.join("")
     }
 }
 

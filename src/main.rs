@@ -1,11 +1,13 @@
 // use jwt::JWT;
-use serde_json;
+use jwt::claims::ClaimSet;
 
 fn main() {
+    let cs = ClaimSet::from_str("{\"a\": {\"b\": \"c\"}}").unwrap();
+    println!("{}", cs.to_str())
     // let r: serde_json::Value = serde_json::from_str("{\"a\": \"b\"}").unwrap();
-    let r: serde_json::Map<String, serde_json::Value> = serde_json::from_str("{\"a\": \"b\"}").unwrap();
+    // let r: serde_json::Map<String, serde_json::Value> = serde_json::from_str("{\"a\": \"b\"}").unwrap();
     // let r = serde_json::from_str("{\"a\": \"b\"}").unwrap();
-    println!("{:?}", r);
+    // println!("{:?}", r);
     // let jwt: JWT = JWT::new();
     // println!("{}", jwt);
     // let jwt: Result<JWT> = JWT::from_str("{\"\"foo\": \"bar\"}");

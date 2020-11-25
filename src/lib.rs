@@ -1,6 +1,5 @@
 //! `jwt` is a JWT parsing Rust crate I implemented in order to gain experience with Rust.
 
-use serde_json::Value;
 use std::fmt;
 
 // "[pub] mod NAME;" in lib.rs tells Rust to import a namespace from a file in the same crate.
@@ -13,7 +12,7 @@ pub mod claims;
 #[derive(Debug)]
 pub struct JWT {
     pub header: header::JWTHeader,
-    pub claims_set: Value,
+    pub claims_set: claims::ClaimSet,
 }
 
 /// The `JWT` struct represents a JWT of any of three valid types: unencrypted JWT, JWS (JSON Web
@@ -104,7 +103,7 @@ impl JWT {
     /// Outputs an unsecured JWT containing the given `claims_set`, or a `JWTError` if the
     /// `claims_set` is invalid. Takes a plaintext JWT string as input.
     pub fn from_plain_str(claims_set: &str) -> err::Result<JWT> {
-        serde_json::from_str(claims_set)
+        claims::ClaimSet::from_str(claims_set)
             .map(|claims_set| { 
                 JWT {
                     header: header::JWTHeader {
@@ -126,7 +125,7 @@ impl JWT {
                 alg: header::Alg::None,
                 cty: header::Cty::None
             },
-            claims_set: serde_json::json!({})
+            claims_set: claims::ClaimSet::new()
         }
     }
 }
@@ -158,7 +157,7 @@ e30=
     #[test]
     fn test_encode_nonempty() {
         let mut jwt = JWT::new();
-        jwt.claims_set = serde_json::json!("{foo:bar}");
+        jwt.claims_set = claims::ClaimSet::from_str("{foo:bar}").unwrap();
         assert_eq!(r#"eyJhbGciOiAibm9uZSJ9
 .
 Intmb286YmFyfSI=
@@ -179,7 +178,7 @@ Intmb286YmFyfSI=
     #[test]
     fn test_encode_str_nonempty() {
         let mut jwt = JWT::new();
-        jwt.claims_set = serde_json::json!({"foo": "bar"});
+        jwt.claims_set = claims::ClaimSet::from_str("{foo:bar}").unwrap();
         println!("{}", jwt.encode_str());
         assert_eq!(r#"{"alg": "none"}
 .
