@@ -1,14 +1,22 @@
 use std::fmt;
 use std::collections::HashMap;
 use url::{Url};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::err;
 
 #[derive(Debug)]
-/// The JWT specification states that claim names must be legal StringOrURI values. For names
-/// lacking a colon (":"), a StringOrURI is a (valid UTF-8) string. For names containing a colon,
-/// a StringOrURI is a URI, and is expected to follow the URI schema.
+/// The JWT specification states that claim names must be legal `StringOrURI` values. For names
+/// lacking a colon `:`, a `StringOrURI` is a (valid UTF-8) string. For names containing a colon,
+/// a `StringOrURI` is a `URI`, and is expected to follow the `URI` schema.
+///
+/// # Examples
+///
+/// ```
+/// use jwt::claims::StringOrURI;
+/// let example = StringOrURI::parse(String::from("foo"));
+/// let example = StringOrURI::parse(String::from("foo:bar"));
+/// ```
 pub enum StringOrURI {
     String(String),
     URI(String),
@@ -24,14 +32,14 @@ impl fmt::Display for StringOrURI {
 }
 
 impl StringOrURI {
-    /// Constructs a new empty string type StringOrURI.
-    fn new_string() -> StringOrURI { StringOrURI::String(String::from("")) }
-    /// Constructs a new URI type StringOrURI with contents "foo:bar" (an example minimal legal
-    /// URI string that satisfies the JWT URI condition that it must contain a colon (":").
-    fn new_uri() -> StringOrURI { StringOrURI::URI(String::from("foo:bar")) }
+    /// Constructs a new empty string type `StringOrURI`.
+    pub fn new_string() -> StringOrURI { StringOrURI::String(String::from("")) }
+    /// Constructs a new URI type `StringOrURI` with contents `foo:bar` (an example minimal legal
+    /// URI string that satisfies the JWT URI condition that it must contain a colon).
+    pub fn new_uri() -> StringOrURI { StringOrURI::URI(String::from("foo:bar")) }
 
     /// Parses a string into a new StringOrURI value.
-    fn parse(inp: String) -> err::Result<StringOrURI> {
+    pub fn parse(inp: String) -> err::Result<StringOrURI> {
         if inp.contains(":") {
             Url::parse(&inp)
                 .map(|inner| { StringOrURI::URI(String::from(inner.as_str())) })
@@ -42,7 +50,7 @@ impl StringOrURI {
     }
 
     /// Converts to a string and returns.
-    fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         match self {
             StringOrURI::String(value) => value,
             StringOrURI::URI(value) => value,
@@ -142,12 +150,12 @@ impl fmt::Display for ClaimSet {
 }
 
 impl ClaimSet {
-    /// Creates an empty ClaimSet
+    /// Creates an empty `ClaimSet`.
     pub fn new() -> ClaimSet {
         ClaimSet{ claims: HashMap::<String, Claim>::new() }
     }
 
-    /// Inserts a claim into the ClaimSet, consuming the claim in the process.
+    /// Inserts a claim into the `ClaimSet`, consuming the claim in the process.
     pub fn insert(&mut self, claim: Claim) -> err::Result<()> {
         let claim_name_str = claim.claim_name.as_str();
         if self.claims.contains_key(claim_name_str) {
@@ -158,10 +166,108 @@ impl ClaimSet {
         }
     }
 
-    /// Returns the Claim with the given name from the ClaimSet, or a SchemaError if none is
+    pub fn from_str(claim_set: &str) -> err::Result<ClaimSet> {
+        let parse: err::Result<Map<String, serde_json::Value>> =
+            serde_json::from_str(&claim_set)
+            .map_err(|e| { err::JWTError::ParseError(format!("{}", e)) });
+
+        // Early return to unpack the parse error.
+        let parse = match parse {
+            Ok(r) => r,
+            Err(e) => return Err(e),
+        };
+
+        let mut result = ClaimSet::new();
+        // TODO: CURRENTLY HERE. Need to work out the object sharing here.
+        // SEE ALSO THE test_claim_set TESTING STUB USED TO TDD CHANGES HERE.
+        for claim_name in parse.keys() {
+            // Using unwrap here is fine because this is a safe operation.
+            let claim_value = parse.get(claim_name).unwrap();
+
+            // Early return to work around a potential URI parse error.
+            // Q: Why is clone necessary here?
+            // A: claim_name and claim_value are pointer references to data owned by the parse
+            //    value reference. We cannot dereference them because doing so would be a Move
+            //    that invalidates the parse value reference, which is not legal to do here
+            //    because we are inside a parse.keys() iterator. Since we have another live
+            //    reference that a deference would implicitly destroy, the dereference is
+            //    forbidden.
+            //
+            //    There may be a more clever way to handle this situation, but a clone() is an
+            //    easy workaround for right now.
+            let claim = Claim::from_str(claim_name.clone(), claim_value.clone());
+            let claim = match claim {
+                Ok(claim) => claim,
+                Err(e) => return Err(e)
+            };
+
+            match result.insert(claim) {
+                Err(e) => return Err(e),
+                _ => ()
+            }
+        };
+        Ok(result)
+    }
+
+    /// Returns the `Claim` with the given name from the `ClaimSet`, or a `SchemaError` if none is
     /// found.
     pub fn get(&mut self, claim_name: &str) -> err::Result<&Claim> {
         self.claims.get(claim_name).ok_or(err::JWTError::SchemaError)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_stringoruri_string() {
+        let s = StringOrURI::parse(String::from("foo")).unwrap();
+        assert!(matches!(s, StringOrURI::String(_)));
+        assert_eq!(s.as_str(), "foo");
+    }
+
+    #[test]
+    fn test_stringoruri_uri() {
+        let s = StringOrURI::parse(String::from("foo:bar")).unwrap();
+        assert!(matches!(s, StringOrURI::URI(_)));
+        assert_eq!(s.as_str(), "foo:bar");
+    }
+
+    #[test]
+    fn test_claim_registered() {
+        let c = Claim::from_str(
+            String::from("iss"), 
+            serde_json::json!("{foo:bar}")
+        ).unwrap();
+        assert_eq!(c.claim_value, "{foo:bar}");
+        assert!(matches!(c.claim_type, ClaimType::Registered));
+    }
+
+    #[test]
+    fn test_claim_public_uri() {
+        let c = Claim::from_str(
+            String::from("foo:bar"), 
+            serde_json::json!("{bar:baz}")
+        ).unwrap();
+        assert_eq!(c.claim_value, "{bar:baz}");
+        assert!(matches!(c.claim_type, ClaimType::Public));
+    }
+
+    #[test]
+    fn test_claim_private() {
+        let c = Claim::from_str(
+            String::from("foo"), 
+            serde_json::json!("{bar:baz}")
+        ).unwrap();
+        assert_eq!(c.claim_value, "{bar:baz}");
+        assert!(matches!(c.claim_type, ClaimType::Private));
+    }
+
+    #[test]
+    fn test_claim_set() {
+        let c = ClaimSet::from_str("{\"a\": \"b\"}").unwrap();
+        assert_eq!(c.claims.get("a").unwrap().claim_value, "b");
     }
 }
 
