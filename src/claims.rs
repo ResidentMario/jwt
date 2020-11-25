@@ -1,7 +1,8 @@
 use std::fmt;
 use std::collections::HashMap;
-use url::{Url};
+use url::Url;
 use serde_json::{Map, Value};
+use uuid::Uuid;
 
 use crate::err;
 use crate::traits::JsonSerializable;
@@ -169,6 +170,20 @@ impl Claim {
         String::from("{\"") + self.claim_name.as_str() + "\":" +
         &serde_json::to_string(&self.claim_value).unwrap() + "}"
     }
+
+    /// Demarkates the `Claim` to be a public claim. Public claims must use collision-resistant
+    /// names; see `jwt::claims::generate_collision_name` for an algorithm which may be used to
+    /// generate such names.
+    pub fn mark_public(&mut self) {
+        self.claim_type = ClaimType::Public;
+    }
+}
+
+/// Generates a public (collision-resistant) claim name from a given fragment, using a UUID. Note
+/// that a brand new UUID will be generated every time this function is run.
+pub fn generate_collision_name(fragment: &str) -> String {
+    let uuid = Uuid::new_v4();
+    uuid.to_string() + "-" + fragment
 }
 
 #[derive(Debug)]
@@ -377,9 +392,3 @@ mod tests {
         assert_eq!(cs.encode_b64(), v);
     }
 }
-
-// TODO:
-// Next step is implementing the reserved claims from the RFC, and the public claims from
-// https://www.iana.org/assignments/jwt/jwt.xhtml (ocassionally updating). Plus, the ability to
-// declare your own public claim name, with a selection of collision-resistant algorithms for
-// generating public claim names. And finally, private names.
