@@ -1,4 +1,10 @@
 //! `jwt` is a JWT parsing Rust crate I implemented in order to gain experience with Rust.
+//!
+//! **Important note**: a JWS may contain an arbitrary octet sequence as its payload. This library
+//! restricts the space of valid JWS payloads to just valid JSON objects (which matches the JWT
+//! specification).
+//!
+//! Also, we only currently use (encode into and decode from) the compact JWS format.
 
 use std::fmt;
 
@@ -49,7 +55,20 @@ pub struct JWT {
 impl traits::JsonSerializable for JWT {
     /// Encodes self into a plaintext string suitable for display.
     fn encode_str(&self) -> String {
-        self.header.encode_str() + "\n.\n" + &self.claim_set.encode_str() + "\n.\n"
+        // Otherwise this is a JWS.
+        match self.header.alg {
+            header::Alg::None =>
+                self.header.encode_str() + "\n.\n" + &self.claim_set.encode_str() + "\n.\n",
+            header::Alg::HS256 => {
+                let signature_plaintext: String =
+                    self.header.encode_b64() + "." + &self.claim_set.encode_b64();
+                // TODO: apply the encoding here.
+                let signature_plaintext = "HELLO";
+
+                self.header.encode_str() + "\n.\n" + &self.claim_set.encode_str() + "\n.\n" +
+                &signature_plaintext
+            },
+        }
     }
 
     /// Encodes self into a base64-encoded JWT string suitable for transport.

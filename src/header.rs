@@ -13,6 +13,7 @@ pub enum Typ {
 #[derive(Debug)]
 pub enum Alg {
     None,
+    HS256,
 }
 
 #[derive(Debug)]
@@ -88,6 +89,7 @@ impl JsonSerializable for JWTHeader {
         let alg = alg.as_str().unwrap();
         let alg = match alg {
             "none" => Alg::None,
+            "HS256" => Alg::HS256,
             _ => return Err(err::JWTError::NotImplementedError)
         };
         Ok(JWTHeader {
